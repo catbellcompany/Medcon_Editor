@@ -1,0 +1,2 @@
+locale 정보
+KO, EN, JP, CN
