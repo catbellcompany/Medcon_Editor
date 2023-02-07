@@ -261,15 +261,17 @@ class scene_Creator:
             tokens = word_tokenize(self.article_title)
             lines = 1
             w = 0
-            
-            for token in tokens:
-                width, height = self.font_article_title.getsize(token + " ")
-                w += width
-                if w > 1440:
-                    w = 0 
-                    lines += 1
-                    
-                
+
+            token_widths = [self.font_article_title.getsize(token + " ")[0] for token in tokens]
+            for i, width in enumerate(token_widths):
+              w += width
+              if i < len(token_widths) - 1 and w + token_widths[i + 1] > 1440:
+                lines += 1
+                w = 0
+              elif w > 1440:
+                lines += 1
+                w = 0
+
             print(lines)
             if lines == 1:
                 text_top = 65.9
@@ -699,13 +701,16 @@ class scene_Creator:
             tokens = word_tokenize(self.article_title)
             lines = 1
             w = 0
-            
-            for token in tokens:
-                width, height = self.font_article_title.getsize(token + " ")
-                w += width
-                if w > 1560:
-                    w = 0 
-                    lines += 1
+
+            token_widths = [self.font_article_title.getsize(token + " ")[0] for token in tokens]
+            for i, width in enumerate(token_widths):
+              w += width
+              if i < len(token_widths) - 1 and w + token_widths[i + 1] > 1750:
+                lines += 1
+                w = 0
+              elif w > 1750:
+                lines += 1
+                w = 0
 
             
             if lines == 1:
