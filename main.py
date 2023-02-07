@@ -950,7 +950,7 @@ def get_voices(project_key : str, bearer : JWTBearer = Depends(JWTBearer()), db 
             audio = MP3(os.getcwd().replace("\\", "/") +"/projects/" + user.key + "/" + project_key +"/sources/voices/" + filename)
             url= "/voice/{}/{}".format(project_key, filename)
             voice_dict['url'] = url
-            voice_dict['duration'] = audio.info.length * 1000
+            voice_dict['duration'] = audio.info.length
             
             filelist.append(voice_dict)
             tmp.append(json.dumps(dict(voice_dict)))
