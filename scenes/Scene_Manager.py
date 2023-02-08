@@ -296,7 +296,7 @@ class scene_Creator:
                 scene = {
                     "id": self.project_key + "_" + str(index),
                     "name": self.project_name + "_" + str(index),
-                    "duration": 5,
+                    "duration": 5000,
                     "layers": [
                             { ## 배경 레이어
                                 "type": "Background",
@@ -581,7 +581,7 @@ class scene_Creator:
             cover_scene = {
                     "id": self.project_key + "_cover",
                     "name": self.project_name + "_cover",
-                    "duration": 5,
+                    "duration": 5000,
                     "layers": [
                         { ## 배경 레이어
                             "type": "Background",
@@ -736,7 +736,7 @@ class scene_Creator:
                 scene = {
                     "id": self.project_key + "_" + str(index),
                     "name": self.project_name + "_" + str(index),
-                    "duration": 5,
+                    "duration": 5000,
                     "layers": [
                         
                         { ## 배경 레이어
