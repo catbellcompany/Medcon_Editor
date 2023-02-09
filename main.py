@@ -570,7 +570,18 @@ def project_get(project_key : str, bearer : JWTBearer = Depends(JWTBearer()), db
             else:
                 tmp = []
                 for voice in voices:
-                    tmp.append(json.loads(voice))
+                    voice_dict = json.loads(voice)
+                    if voice_dict['url'] and voice_dict['duration']:
+                        if voice_dict['id'] > 9:
+                            filename = project_key + "_voice_"+  str(voice_dict['id'])+".mp3"
+                        else:
+                            filename = project_key + "_voice_0"+  str(voice_dict['id'])+".mp3"
+                        audio = MP3(os.getcwd().replace("\\", "/") +"/projects/" + user.key + "/" + project_key +"/sources/voices/" + filename)
+                        url= "/voice/{}/{}".format(project_key, filename)
+                        voice_dict['url'] = url
+                        voice_dict['duration'] = audio.info.length
+
+                    tmp.append(json.dumps(dict(voice_dict)))
                 voices = tmp
 
         result = {"project_key" : project_dict["project_key"], "project_name" : project_dict["project_name"], "user_key" : project_dict["user_key"], "json_txt" : json.loads(project_dict["json"].replace('{"id": "Image_centerImg", "name": "StaticImage", "stroke": null, "strokeWidth": 0, "left": 510.0, "top": 210, "width": 900, "height": 620, "opacity": 1, "originY": "top", "scaleX": 1, "scaleY": 1, "type": "StaticImage", "visible": true, "src": "", "cropX": 0, "cropY": 0, "metadata": {}},', '')), "doi" : project_dict["doi"], "author_image": project_dict['author_img'],"thumbnail" : project.thumbnail, "voices" : voices, "create_dt" : str(project_dict['create_dt']), "last_mod_dt" : str(project_dict['last_mod_dt'])}

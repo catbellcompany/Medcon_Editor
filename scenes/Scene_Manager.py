@@ -234,26 +234,16 @@ class scene_Creator:
             left -= image.width
             image.close()
             logo_dict = {
-                            "id": "StaticImage_logo_" + str(i),
+                            "type": "StaticImage",
                             "name": "logo_" + str(i),
-                            "stroke": None,
-                            "strokeWidth": 0,
+                            "id": "StaticImage_logo_" + str(i),
                             #계산 후 들어감
                             "left": left,
                             "top": 1000,
                             "width": image.width,
                             "height": 50,
-                            "opacity": 1,
-                            "originY": "top",
-                            "scaleX": 1,
-                            "scaleY": 1,
-                            "type": "StaticImage",
-                            
-                            "visible": True,
+
                             "src": "http://218.52.115.188:7000/LogoImage/{}".format(logo_name) + "/",
-                            "cropX": 0,
-                            "cropY": 0,
-                            "metadata": {}
                         }
             i += 1
             logo_dict_list.append(logo_dict)
@@ -271,15 +261,17 @@ class scene_Creator:
             tokens = word_tokenize(self.article_title)
             lines = 1
             w = 0
-            
-            for token in tokens:
-                width, height = self.font_article_title.getsize(token + " ")
-                w += width
-                if w > 1440:
-                    w = 0 
-                    lines += 1
-                    
-                
+
+            token_widths = [self.font_article_title.getsize(token + " ")[0] for token in tokens]
+            for i, width in enumerate(token_widths):
+              w += width
+              if i < len(token_widths) - 1 and w + token_widths[i + 1] > 1440:
+                lines += 1
+                w = 0
+              elif w > 1440:
+                lines += 1
+                w = 0
+
             print(lines)
             if lines == 1:
                 text_top = 65.9
@@ -301,73 +293,51 @@ class scene_Creator:
                 else:
                     img_url = self.image_url_list[img_ind][0]
                     img_width = self.image_url_list[img_ind][1]
-
                 scene = {
-                    "id": self.project_key + "-" + str(index),
-                    "name": self.project_name + "-" + str(index),
+                    "id": self.project_key + "_" + str(index),
+                    "name": self.project_name + "_" + str(index),
                     "duration": 5000,
                     "layers": [
-                            { ## 백그라운드 영역
-                                "id": "background",
+                            { ## 배경 레이어
+                                "type": "Background",
                                 "name": "background",
-                                
-                                "stroke": None,
-                                "strokeWidth": 0,
+                                "id": "background",
                                 "left": 0,
                                 "top": 0,
                                 "width": 1920,
                                 "height": 1080,
-                                "opacity": 1,
-                                
-                                "originY": "top",
-                                "scaleX": 1,
-                                "scaleY": 1,
-                                "type": "Background",
-                                
-                                "visible": True,
-                                "fill": "#ffffff",
-                                "metadata": {}
+
+                                "fill": "#ffffff"
                             },
-                            {
-                            "id": "StaticPath_articleTitle",
-                            "name": "articleTitle",
-                            "left": 360,
-                            "top": 0,
-                            "width": 1560,
-                            "height": 180,
-                            "type": "StaticPath",
-                            "path": [
-                                ["M", 1560, 0],
-                                ["L", 0, 0],
-                                ["L", 0, 180],
-                                ["L", 1560, 180],
-                                ["L", 1560, 0],
-                                ["Z"]
-                            ],
-                            "fill": "#0B9281",
+                            {   # 제목 배경 레이어
+                                "type": "StaticPath",
+                                "name": "articleTitle",
+                                "id": "StaticPath_articleTitle",
+                                "left": 360,
+                                "top": 0,
+                                "width": 1560,
+                                "height": 180,
+
+                                "fill": "#0B9281",
+                                "path": [
+                                    ["M", 1560, 0],
+                                    ["L", 0, 0],
+                                    ["L", 0, 180],
+                                    ["L", 1560, 180],
+                                    ["L", 1560, 0],
+                                    ["Z"]
+                                ]
                             },
-                            
-                            #저자 배경 영역 Blugray
-                            {
-                                "id": "StaticPath_authors",
+                            {   #저자 배경 영역 Blugray
+                                "type": "StaticPath",
                                 "name": "authors",
-                                
-                                "stroke": None,
-                                "strokeWidth": 0,
+                                "id": "StaticPath_authors",
                                 "left": 0,
                                 "top": 0,
                                 "width": 360,
                                 "height": 980,
-                                "opacity": 1,
-                                
-                                "originY": "top",
-                                "scaleX": 1,
-                                "scaleY": 1,
-                                "type": "StaticPath",
 
-                                
-                                "visible": True,
-                                
+                                "fill": "#4f6575",
                                 "path": [
                                     ["M", 360, 0],
                                     ["L", 0, 0],
@@ -375,65 +345,18 @@ class scene_Creator:
                                     ["L", 360, 980],
                                     ["L", 360, 0],
                                     ["Z"]
-                                ],
-                                "fill": "#4f6575",
-                                "metadata": {}
+                                ]
                             },
-                            #자막 배경 영역
-                            {
-                                "id": "StaticPath_abstract",
-                                "name": "abstract",
-                                
-                                "stroke": None,
-                                "strokeWidth": 0,
-                                "left": 360,
-                                #Edited
-                                "top": 790,
-                                "width": 1560,
-                                #Edited
-                                "height": 130,
-                                "opacity": 1,
-                                
-                                "originY": "top",
-                                "scaleX": 1,
-                                "scaleY": 1,
+                            {   ## 키워드 배경 레이어
                                 "type": "StaticPath",
-
-                                
-                                "visible": True,
-                                
-                                "path": [
-                                            ["M", 1560, 0],
-                                            ["L", 0, 0],
-                                            ["L", 0, 130],
-                                            ["L", 1560, 130],
-                                            ["L", 1560, 0],
-                                            ["Z"]
-                                        ],
-                                "fill": "#ededed",
-                                "metadata": {}
-                            },
-                            
-                            { ## 키워드 배경 레이어
-                                "id": "StaticPath_keyword",
                                 "name": "keyword",
-                                
-                                "stroke": None,
-                                "strokeWidth": 0,
+                                "id": "StaticPath_keyword",
                                 "left": 360,
                                 "top": 920,
                                 "width": 1560,
                                 "height": 60,
-                                "opacity": 1,
-                                
-                                "originY": "top",
-                                "scaleX": 1,
-                                "scaleY": 1,
-                                "type": "StaticPath",
 
-                                
-                                "visible": True,
-                                
+                                "fill": "#dbdbdb",
                                 "path": [
                                     ["M", 1560, 0],
                                     ["L", 0, 0],
@@ -441,30 +364,37 @@ class scene_Creator:
                                     ["L", 1560, 60],
                                     ["L", 1560, 0],
                                     ["Z"]
-                                ],
-                                "fill": "#dbdbdb",
-                                "metadata": {}
+                                ]
                             },
+                            {   ## 자막 배경 레이어
+                                "type": "StaticPath",
+                                "name": "abstract",
+                                "id": "StaticPath_abstract",
+                                "left": 360,
+                                "top": 790,
+                                "width": 1560,
+                                "height": 130,
 
+                                "fill": "#ededed",
+                                "path": [
+                                  ["M", 1560, 0],
+                                  ["L", 0, 0],
+                                  ["L", 0, 130],
+                                  ["L", 1560, 130],
+                                  ["L", 1560, 0],
+                                  ["Z"]
+                                ]
+                            },
                             { ## 저작권 배경 레이어
-                                "id": "StaticPath_copyright",
+                                "type": "StaticPath",
                                 "name": "copyright",
-                                
-                                "stroke": None,
-                                "strokeWidth": 0,
+                                "id": "StaticPath_copyright",
                                 "left": 0,
                                 "top": 980,
                                 "width": 1920,
                                 "height": 100,
-                                "opacity": 1,
-                                
-                                "originY": "top",
-                                "scaleX": 1,
-                                "scaleY": 1,
-                                "type": "StaticPath",
-                                
-                                "visible": True,
-                                
+
+                                "fill": "#000000",
                                 "path": [
                                     ["M", 1920, 0],
                                     ["L", 0, 0],
@@ -472,338 +402,161 @@ class scene_Creator:
                                     ["L", 1920, 100],
                                     ["L", 1920, 0],
                                     ["Z"]
-                                ],
-                                "fill": "#000000",
-                                "metadata": {}
+                                ]
                             },
 
-                            
-                            {   ##커버 이미지 레이어
-                                "id": "StaticImage_cover",
+                            {   ## 커버 이미지 레이어
+                                "type": "StaticImage",
                                 "name": "cover",
-                                
-                                "stroke": None,
-                                "strokeWidth": 0,
+                                "id": "StaticImage_cover",
                                 "left": 60,
                                 "top": 40,
-                                "opacity": 1,
-                                
-                                "originY": "top",
-                                "scaleX": 1,
-                                "scaleY": 1,
+
+                                "src": 'http://218.52.115.188:7000/CoverImage/' + self.get_cover_name() + "/"
+                            },
+                            {   ## 저자 이미지 레이어
                                 "type": "StaticImage",
-                                
-                                "visible": True,
-                                
-                                # 커버 URL
-                                "src": 'http://218.52.115.188:7000/CoverImage/' + self.get_cover_name() + "/",
-                                
-                                "cropX": 0,
-                                "cropY": 0,
-                                "metadata": {}
-                            },
-
-                            {   ## 교신저자 레이어
-                                "id": "StaticText_correspondence",
-                                "name": "correspondence",
-                                
-                                "stroke": None,
-                                "strokeWidth": 0,
-                                "left": 30,
-                                "top": 600,
-                                "width": 300,
-                                "height": 45,
-                                "opacity": 1,
-                                
-                                "originY": "top",
-                                "scaleX": 1,
-                                "scaleY": 1,
-                                "type": "StaticText",
-                                
-                                "visible": True,
-                                
-                                "charSpacing": 0,
-                                "fill": "#ffffff",
-                                "fontFamily": "NotoSans-Medium",
-                                "fontSize": 33,
-                                "lineHeight": 1.16,
-                                ## 교신저자 텍스트
-                                "text": self.correspond,
-                                "textAlign": "center",
-                                "fontURL": "https://cdn.jsdelivr.net/npm/notosans@5.0.0/NotoSans-Regular.woff2"
-                            },
-
-                            {   ## 공동저자 레이어
-                                "id": "StaticText_authors",
                                 "name": "authors",
-                                
-                                "stroke": None,
-                                "strokeWidth": 0,
-                                "left": 30,
-                                "top": 680,
-                                "width": 300,
-                                "height": 53.7,
-                                "opacity": 1,
-                                
-                                "originY": "top",
-                                "scaleX": 1,
-                                "scaleY": 1,
-                                "type": "StaticText",
-                                "visible": True,
-                                
-                                "charSpacing": 0,
-                                "fill": "#ffffff",
-                                "fontFamily": "NotoSans-Regular",
-                                "fontSize": 22,
-                                "lineHeight": 1.16,
-                                #공동저자 텍스트
-                                "text": self.authors.replace(";", ","),
-                                "textAlign": "center",
-                                "fontURL": "https://cdn.jsdelivr.net/npm/notosans@5.0.0/NotoSans-Regular.woff2"
+                                "id": "StaticImage_authors",
+                                "left": 108,
+                                "top": 427,
+
+                                "src": self.author_img
+                            },
+                            {   ## 센터 이미지 레이어
+                              "type": "StaticImage",
+                              "name": "centerImg",
+                              "id": "StaticImage_centerImg",
+                              "left": ((1560 - img_width) / 2) + 360,
+                              "top": 210,
+                              "width": img_width,
+                              "height": 580,
+
+                              "src": img_url
                             },
 
-                            {   ##타이틀 텍스트
-                                "id": "StaticText_articleTitle",
+                            {   ## 타이틀 텍스트
+                                "type": "StaticText",
                                 "name": "articleTitle",
-                                
-                                "stroke": None,
-                                "strokeWidth": 0,
-                                ##Edited
+                                "id": "StaticText_articleTitle",
                                 "left": 420,
                                 "top": text_top,
                                 "width": 1440,
-                                "height": 100,
-                                #Edited
-                                "opacity": 1,
-                                
-                                "originY": "top",
-                                "scaleX": 1,
-                                "scaleY": 1,
-                                "type": "StaticText",
 
-                                "visible": True,
-                                
-                                #Edited
-                                "charSpacing": 0,
                                 "fill": "#ffffff",
                                 "fontFamily": "NotoSans-Bold",
                                 "fontSize": 40,
-                                "lineHeight": 1.16,
-                                #텍스트 영역
                                 "text" : self.article_title,
                                 "textAlign": "center",
                                 "fontURL": "https://cdn.jsdelivr.net/npm/notosans@5.0.0/NotoSans-Bold.woff2"
                             },
-
-                            {   ##센터 이미지 레이어
-                                "id": "StaticImage_centerImg",
-                                "name": "centerImg",
-                                
-                                "stroke": None,
-                                "strokeWidth": 0,
-                                "left": ((1560 - img_width) / 2) + 360,
-                                "top": 210,
-                                "width": img_width,
-                                ## Edited
-                                "height": 580,
-                                "opacity": 1,
-                                
-                                "originY": "top",
-                                "scaleX": 1,
-                                "scaleY": 1,
-                                "type": "StaticImage",
-                                
-                                
-                                
-                                
-                                "visible": True,
-                                
-                                #이미지 URL
-                                "src": img_url,
-                                "cropX": 0,
-                                "cropY": 0,
-                                "metadata": {}
-                            },
-
-                            {   ##자막 텍스트 레이어
-                                "id": "StaticText_abstract",
+                            {   ## 자막 텍스트 레이어
+                                "type": "StaticText",
                                 "name": "abstract",
-                                
-                                "stroke": None,
-                                "strokeWidth": 0,
-                                #Edited
+                                "id": "StaticText_abstract",
                                 "left": 420,
                                 "top": 790,
-                                #Edited
                                 "width": 1440,
-                                "height": 130,
-                                "opacity": 1,
-                                
-                                "originY": "top",
-                                "scaleX": 1,
-                                "scaleY": 1,
-                                "type": "StaticText",
 
-                                "visible": True,
-                                
-                                
-                                #Edited
                                 "fill": "#000000",
-                                "fontFamily": "NotoSans-Medium",
+                                "fontFamily": "NotoSans-Regular",
                                 "fontSize": 30,
-                                "lineHeight": 1.16,
-                                #Edited
-                                
-                                "charSpacing": 0,
-                                #자막 이미지 URL
                                 "text": abs.replace("'", "’"),
                                 "textAlign": "left",
                                 "fontURL": "https://cdn.jsdelivr.net/npm/notosans@5.0.0/NotoSans-Regular.woff2"
                             },
+                            {   ## 교신저자 레이어
+                              "type": "StaticText",
+                              "name": "correspondence",
+                              "id": "StaticText_correspondence",
+                              "left": 30,
+                              "top": 600,
+                              "width": 300,
 
+                              "fill": "#ffffff",
+                              "fontFamily": "NotoSans-Regular",
+                              "fontSize": 33,
+                              "text": self.correspond,
+                              "textAlign": "center",
+                              "fontURL": "https://cdn.jsdelivr.net/npm/notosans@5.0.0/NotoSans-Regular.woff2"
+                            },
+                            {   ## 공동저자 레이어
+                              "type": "StaticText",
+                              "name": "authors",
+                              "id": "StaticText_authors",
+                              "left": 30,
+                              "top": 680,
+                              "width": 300,
+
+                              "fill": "#ffffff",
+                              "fontFamily": "NotoSans-Regular",
+                              "fontSize": 22,
+                              "text": self.authors.replace(";", ","),
+                              "textAlign": "center",
+                              "fontURL": "https://cdn.jsdelivr.net/npm/notosans@5.0.0/NotoSans-Regular.woff2"
+                            },
                             { ## 키워드 타이틀 레이어
-                                "id": "StaticText_keywordTitle",
-                                "name": "keywordTitle",
-                                
-                                "stroke": None,
-                                "strokeWidth": 0,
-                                "left": 417,
-                                "top": 934,
-                                "width": 125,
-                                "height": 31,
-                                "opacity": 1,
-                                
-                                "originY": "top",
-                                "scaleX": 1,
-                                "scaleY": 1,
-                                "type": "StaticText",
+                              "type": "StaticText",
+                              "name": "keywordTitle",
+                              "id": "StaticText_keywordTitle",
+                              "left": 417,
+                              "top": 935,
+                              "width": 126,
 
-                                "visible": True,
-                                
-                                "charSpacing": 0,
-                                "fill": "#444444",
-                                "fontFamily": "NotoSans-Bold",
-                                "fontSize": 25,
-                                "lineHeight": 1,
-                                "text": "KEYWORD",
-                                "textAlign": "left",
-                                "fontURL": "https://cdn.jsdelivr.net/npm/notosans@5.0.0/NotoSans-Bold.woff2"
+                              "fill": "#999999",
+                              "fontFamily": "NotoSans-Bold",
+                              "fontSize": 25,
+                              "text": "KEYWORD",
+                              "textAlign": "left",
+                              "fontURL": "https://cdn.jsdelivr.net/npm/notosans@5.0.0/NotoSans-Bold.woff2"
                             },
-
                             { ## 키워드 텍스트 레이어
-                                "id": "StaticText_keyword",
-                                "name": "keyword",
-                                
-                                "stroke": None,
-                                "strokeWidth": 0,
-                                "left": 588,
-                                "top": 934,
-                                "width": 1275,
-                                "height": 31,
-                                "opacity": 1,
-                                
-                                "originY": "top",
-                                "scaleX": 1,
-                                "scaleY": 1,
-                                "type": "StaticText",
+                              "type": "StaticText",
+                              "name": "keyword",
+                              "id": "StaticText_keyword",
+                              "left": 588,
+                              "top": 933,
+                              "width": 1275,
 
-                                "visible": True,
-                                
-                                "charSpacing": 0,
-                                "fill": "#444444",
-                                "fontFamily": "NotoSans-Medium",
-                                "fontSize": 25,
-                                "lineHeight": 1,
-                                "text": self.keywords.replace("'", "’"),
-                                "textAlign": "left",
-                                "fontURL": "https://cdn.jsdelivr.net/npm/notosans@5.0.0/NotoSans-Regular.woff2"
+                              "fill": "#444444",
+                              "fontFamily": "NotoSans-Regular",
+                              "fontSize": 25,
+                              "text": self.keywords.replace("'", "’"),
+                              "textAlign": "left",
+                              "fontURL": "https://cdn.jsdelivr.net/npm/notosans@5.0.0/NotoSans-Regular.woff2"
                             },
-                            
-                            {   ##저자 이미지 레이어
-                                "id": "StaticImage_authors",
-                                "name": "authors",
-                                
-                                "stroke": None,
-                                "strokeWidth": 0,
-                                "left": 108,
-                                "top": 427,
-                                "width": 144,
-                                "height": 144,
-                                "opacity": 1,
-                                
-                                "originY": "top",
-                                "scaleX": 1,
-                                "scaleY": 1,
-                                "type": "StaticImage",
-
-                                "visible": True,
-                                
-                                "src": self.author_img,
-                                "cropX": 0,
-                                "cropY": 0,
-                                "metadata": {}
-                            },
-                    
                             {   ## DOI 주소 레이어
-                                "id": "StaticText_doi",
+                                "type": "StaticText",
                                 "name": "doi",
-                                
-                                "stroke": None,
-                                "strokeWidth": 0,
+                                "id": "StaticText_doi",
                                 "left": 30,
                                 "top": 1005,
                                 "width": 800,
-                                "height": 22.6,
-                                "opacity": 1,
-                                
-                                "originY": "top",
-                                "scaleX": 1,
-                                "scaleY": 1,
-                                "type": "StaticText",
 
-                                "visible": True,
-                                
-                                "charSpacing": 0,
                                 "fill": "#ffffff",
                                 "fontFamily": "NotoSans-Regular",
                                 "fontSize": 20,
-                                "lineHeight": 1.16,
                                 "text": self.doi,
                                 "textAlign": "left",
                                 "fontURL": "https://cdn.jsdelivr.net/npm/notosans@5.0.0/NotoSans-Regular.woff2"
                             },
-                    
                             {   ##저작권 정보 레이어
-                                "id": "StaticText_copyright",
+                                "type": "StaticText",
                                 "name": "copyright",
-                                
-                                "stroke": None,
-                                "strokeWidth": 0,
+                                "id": "StaticText_copyright",
                                 "left": 30,
                                 "top": 1030,
                                 "width": 800,
-                                "height": 22.6,
-                                "opacity": 1,
-                                
-                                "originY": "top",
-                                "scaleX": 1,
-                                "scaleY": 1,
-                                "type": "StaticText",
 
-                                "visible": True,
-                                
-                                "charSpacing": 0,
                                 "fill": "#ffffff",
                                 "fontFamily": "NotoSans-Regular",
                                 "fontSize": 20,
-                                "lineHeight": 1.16,
                                 "text": self.copyright,
                                 "textAlign": "left",
                                 "fontURL": "https://cdn.jsdelivr.net/npm/notosans@5.0.0/NotoSans-Regular.woff2"
                             }
-                    
-                            ## 로고레이어
-                            
+
+                        ## 로고 이미지 레이어
                     ] + self.get_logo_img()
                     
                 }
@@ -831,220 +584,115 @@ class scene_Creator:
                     "duration": 5000,
                     "layers": [
                         { ## 배경 레이어
-                            "id": "background",
+                            "type": "Background",
                             "name": "background",
-                            
-                            "stroke": None,
-                            "strokeWidth": 0,
+                            "id": "background",
                             "left": 0,
                             "top": 0,
                             "width": 1920,
                             "height": 1080,
-                            "opacity": 1,
-                            
-                            "originY": "top",
-                            "scaleX": 1,
-                            "scaleY": 1,
-                            "type": "Background",
 
-                            "visible": True,
-                            "fill": "#ffffff",
-                            "metadata": {}
+                            "fill": "#ffffff"
                             },
-                
-                    
-                        { ## 타이틀 텍스트 레이어
-                            "id": "StaticText_articleTitle",
+                        { ## 커버 이미지 레이어
+                          "type": "StaticImage",
+                          "name": "cover",
+                          "id": "StaticImage_cover",
+                          "left": 100,
+                          "top": 101,
+
+                          "scaleX": 2.74,
+                          "scaleY": 2.74,
+                          "src": 'http://218.52.115.188:7000/CoverImage/' + self.get_cover_name() + "/"
+                        },
+
+                        { ## 저자 이미지 레이어
+                          "type": "StaticImage",
+                          "name": "authors",
+                          "id": "StaticImage_authors",
+                          "left": 900,
+                          "top": 354,
+
+                          "src": self.author_img
+                        },
+                        {   ## 타이틀 텍스트
+                            "type": "StaticText",
                             "name": "articleTitle",
-                            
-                            "stroke": None,
-                            "strokeWidth": 0,
+                            "id": "StaticText_articleTitle",
                             "left": 900,
                             "top": 101,
-                            "width": 970,
-                            "height": 168,
-                            "opacity": 1,
-                            
-                            "originY": "top",
-                            "scaleX": 1,
-                            "scaleY": 1,
-                            "type": "StaticText",
+                            "width": 890,
 
-                            "visible": True,
-                            
-                            "charSpacing": 0,
                             "fill": "#222222",
                             "fontFamily": "NotoSans-Bold",
                             "fontSize": 45,
-                            "lineHeight": 1.16,
                             "text": self.article_title,
                             "textAlign": "left",
                             "fontURL": "https://cdn.jsdelivr.net/npm/notosans@5.0.0/NotoSans-Bold.woff2"
                         },
-                        
-                        
-                        { ## 교신저자 텍스트 레이어
-                            "id": "StaticText_correspondence",
-                            "name": "correspondence",
-                            
-                            "stroke": None,
-                            "strokeWidth": 0,
-                            "left": 1095,
-                            "top": 424,
-                            "width": 610,
-                            "height": 50,
-                            "opacity": 1,
-                            
-                            "originY": "top",
-                            "scaleX": 1,
-                            "scaleY": 1,
-                            "type": "StaticText",
 
-                            "visible": True,
-                            
-                            "charSpacing": 0,
-                            "fill": "#444444",
-                            "fontFamily": "NotoSans-Medium",
+                        {   ## 교신저자 레이어
+                            "type": "StaticText",
+                            "name": "correspondence",
+                            "id": "StaticText_correspondence",
+                            "left": 1095,
+                            "top": 402,
+                            "width": 695,
+
+                            "fill": "#222222",
+                            "fontFamily": "NotoSans-Regular",
                             "fontSize": 40,
-                            "lineHeight": 1.16,
                             "text": self.correspond,
                             "textAlign": "left",
                             "fontURL": "https://cdn.jsdelivr.net/npm/notosans@5.0.0/NotoSans-Regular.woff2"
                         },
-                        
-                        { ## 공동저자 텍스트 레이어
-                            "id": "StaticText_authors",
+
+                        {   ## 공동저자 레이어
+                            "type": "StaticText",
                             "name": "authors",
-                            
-                            "stroke": None,
-                            "strokeWidth": 0,
+                            "id": "StaticText_authors",
                             "left": 1095,
                             "top": 520,
-                            "width": 610,
-                            "height": 50,
-                            "opacity": 1,
-                            
-                            "originY": "top",
-                            "scaleX": 1,
-                            "scaleY": 1,
-                            "type": "StaticText",
+                            "width": 695,
 
-                            "visible": True,
-                            
-                            "charSpacing": 0,
                             "fill": "#222222",
                             "fontFamily": "NotoSans-Regular",
                             "fontSize": 30,
-                            "lineHeight": 1.16,
                             "text": self.authors.replace(";", ","),
                             "textAlign": "left",
                             "fontURL": "https://cdn.jsdelivr.net/npm/notosans@5.0.0/NotoSans-Regular.woff2"
                         },
-                        
-                        { ## 키워드 타이틀 레이어
-                            "id": "StaticText_keywordTitle",
-                            "name": "keywordTitle",
-                            
-                            "stroke": None,
-                            "strokeWidth": 0,
-                            "left": 900,
-                            "top": 917,
-                            "width": 125,
-                            "height": 62,
-                            "opacity": 1,
-                            
-                            "originY": "top",
-                            "scaleX": 1,
-                            "scaleY": 1,
-                            "type": "StaticText",
 
-                            "visible": True,
-                            "shadow": True,
-                            "charSpacing": 0,
+                        { ## 키워드 타이틀 레이어
+                            "type": "StaticText",
+                            "name": "keywordTitle",
+                            "id": "StaticText_keywordTitle",
+                            "left": 900,
+                            "top": 915,
+                            "width": 126,
+
                             "fill": "#999999",
                             "fontFamily": "NotoSans-Bold",
-                            "fontSize": 22,
-                            "lineHeight": 1.16,
-                            "text": "KEYWORDS",
+                            "fontSize": 25,
+                            "text": "KEYWORD",
                             "textAlign": "left",
                             "fontURL": "https://cdn.jsdelivr.net/npm/notosans@5.0.0/NotoSans-Bold.woff2"
                         },
-                        
-                        { ## 키워드 텍스트 레이어
-                            "id": "StaticText_keyword",
-                            "name": "keyword",
-                            
-                            "stroke": None,
-                            "strokeWidth": 0,
-                            "left": 1071,
-                            "top": 917,
-                            "width": 700,
-                            "height": 62,
-                            "opacity": 1,
-                            
-                            "originY": "top",
-                            "scaleX": 1,
-                            "scaleY": 1,
-                            "type": "StaticText",
 
-                            "visible": True,
-                            
-                            "charSpacing": 0,
+                        { ## 키워드 텍스트 레이어
+                            "type": "StaticText",
+                            "name": "keyword",
+                            "id": "StaticText_keyword",
+                            "left": 1050,
+                            "top": 910,
+                            "width": 740,
+
                             "fill": "#444444",
-                            "fontFamily": "NotoSans-Medium",
-                            "fontSize": 22,
-                            "lineHeight": 1.16,
+                            "fontFamily": "NotoSans-Regular",
+                            "fontSize": 25,
                             "text": self.keywords.replace("'", "’"),
                             "textAlign": "left",
                             "fontURL": "https://cdn.jsdelivr.net/npm/notosans@5.0.0/NotoSans-Regular.woff2"
-                        },
-                        
-                        { ## 커버 이미지 레이어
-                            "id": "StaticImage_cover",
-                            "name": "cover",
-                            
-                            "stroke": None,
-                            "strokeWidth": 0,
-                            "left": 100,
-                            "top": 101,
-                            "opacity": 1,
-                            
-                            "originY": "top",
-                            "scaleX": 2.74,
-                            "scaleY": 2.74,
-                            "type": "StaticImage",
-
-                            "visible": True,
-                            
-                            "src": 'http://218.52.115.188:7000/CoverImage/' + self.get_cover_name() + "/",
-                            "cropX": 0,
-                            "cropY": 0,
-                            "metadata": {}
-                        },
-                        
-                        { ## 저자 이미지 레이어
-                            "id": "StaticImage_authors",
-                            "name": "authors",
-                            
-                            "stroke": None,
-                            "strokeWidth": 0,
-                            "left": 900,
-                            "top": 374,
-                            "width": 150,
-                            "height": 150,
-                            "opacity": 1,
-                            
-                            "originY": "top",
-                            "scaleX": 1,
-                            "scaleY": 1,
-                            "type": "StaticImage",
-
-                            "visible": False,
-                            "shadow": False,
-                            "src": self.author_img,
-                            "cropX": 0,
-                            "cropY": 0,
-                            "metadata": {}
                         }
                     ]
                 }
@@ -1053,13 +701,16 @@ class scene_Creator:
             tokens = word_tokenize(self.article_title)
             lines = 1
             w = 0
-            
-            for token in tokens:
-                width, height = self.font_article_title.getsize(token + " ")
-                w += width
-                if w > 1560:
-                    w = 0 
-                    lines += 1
+
+            token_widths = [self.font_article_title.getsize(token + " ")[0] for token in tokens]
+            for i, width in enumerate(token_widths):
+              w += width
+              if i < len(token_widths) - 1 and w + token_widths[i + 1] > 1750:
+                lines += 1
+                w = 0
+              elif w > 1750:
+                lines += 1
+                w = 0
 
             
             if lines == 1:
@@ -1083,52 +734,51 @@ class scene_Creator:
                     img_url = self.image_url_list[img_ind][0]
                     img_width = self.image_url_list[img_ind][1]
                 scene = {
-                    "id": self.project_key + "-" + str(index),
-                    "name": self.project_name + "-" + str(index),
+                    "id": self.project_key + "_" + str(index),
+                    "name": self.project_name + "_" + str(index),
                     "duration": 5000,
                     "layers": [
                         
                         { ## 배경 레이어
-                            "id": "background",
+                            "type": "Background",
                             "name": "background",
-                            
-                            "stroke": None,
-                            "strokeWidth": 0,
+                            "id": "background",
                             "left": 0,
                             "top": 0,
                             "width": 1920,
                             "height": 1080,
-                            "opacity": 1,
-                            
-                            "originY": "top",
-                            "scaleX": 1,
-                            "scaleY": 1,
-                            "type": "Background",
 
-                            "visible": True,
-                            "fill": "#ffffff",
-                            "metadata": {}
+                            "fill": "#ffffff"
                         },
-                        
-                        { ## 자막 배경 레이어
-                            "id": "StaticPath_abstract",
+                        {   # 제목 배경 레이어
+                            "type": "StaticPath",
+                            "name": "articleTitle",
+                            "id": "StaticPath_articleTitle",
+                            "left": 0,
+                            "top": 0,
+                            "width": 1920,
+                            "height": 180,
+
+                            "fill": "#0B9281",
+                            "path": [
+                              ["M", 1920, 0],
+                              ["L", 0, 0],
+                              ["L", 0, 180],
+                              ["L", 1920, 180],
+                              ["L", 1920, 0],
+                              ["Z"]
+                            ]
+                            },
+                        {   ## 자막 배경 레이어
+                            "type": "StaticPath",
                             "name": "abstract",
-                            
-                            "stroke": None,
-                            "strokeWidth": 0,
+                            "id": "StaticPath_abstract",
                             "left": 0,
                             "top": 830,
                             "width": 1920,
                             "height": 150,
-                            "opacity": 1,
-                            
-                            "originY": "top",
-                            "scaleX": 1,
-                            "scaleY": 1,
-                            "type": "StaticPath",
 
-                            "visible": True,
-                            
+                            "fill": "#ededed",
                             "path": [
                                 ["M", 1920, 0],
                                 ["L", 0, 0],
@@ -1136,30 +786,18 @@ class scene_Creator:
                                 ["L", 1920, 150],
                                 ["L", 1920, 0],
                                 ["Z"]
-                            ],
-                            "fill": "#ededed",
-                            "metadata": {}
+                            ]
                         },
-                    
                         { ## 저작권 배경 레이어
-                            "id": "StaticPath_copyright",
+                            "type": "StaticPath",
                             "name": "copyright",
-                            
-                            "stroke": None,
-                            "strokeWidth": 0,
+                            "id": "StaticPath_copyright",
                             "left": 0,
                             "top": 980,
                             "width": 1920,
                             "height": 100,
-                            "opacity": 1,
-                            
-                            "originY": "top",
-                            "scaleX": 1,
-                            "scaleY": 1,
-                            "type": "StaticPath",
 
-                            "visible": True,
-                            
+                            "fill": "#000000",
                             "path": [
                                 ["M", 1920, 0],
                                 ["L", 0, 0],
@@ -1168,151 +806,76 @@ class scene_Creator:
                                 ["L", 1920, 0],
                                 ["Z"]
                             ],
-                            "fill": "#000000",
-                            "metadata": {}
                         },
 
-                    
-                        { ## 센터 이미지 레이어
-                            "id": "StaticImage_centerImg",
+                        {   ## 센터 이미지 레이어
+                            "type": "StaticImage",
                             "name": "centerImg",
-                            
-                            "stroke": None,
-                            "strokeWidth": 0,
-                            "left": (1920- img_width) / 2,
+                            "id": "StaticImage_centerImg",
+                            "left": (1920 - img_width) / 2,
                             "top": 210,
                             "width": img_width,
-                            "height": 620,
-                            "opacity": 1,
-                            
-                            "originY": "top",
-                            "scaleX": 1,
-                            "scaleY": 1,
-                            "type": "StaticImage",
+                            "height": 580,
 
-                            "visible": True,
-                            
-                            "src": img_url,
-                            "cropX": 0,
-                            "cropY": 0,
-                            "metadata": {}
+                            "src": img_url
                         },
-                        {
-                            "id": "StaticText_articleTitle",
-                            "name": "articleTitle",
-                            "left": 180,
-                            "top": 40,
-                            "width": 1560,
+
+                        {   ##타이틀 텍스트
                             "type": "StaticText",
+                            "name": "articleTitle",
+                            "id": "StaticText_articleTitle",
+                            "left": 85,
+                            "top": 40,
+                            "width": 1750,
+
                             "fill": "#ffffff",
                             "fontFamily": "NotoSans-Bold",
                             "fontSize": 40,
-                            "lineHeight": 1.16,
                             "text": self.article_title,
                             "textAlign": "center",
                             "fontURL": "https://cdn.jsdelivr.net/npm/notosans@5.0.0/NotoSans-Bold.woff2"
                         },
-                        {
-                            "id": "StaticPath_articleTitle",
-                            "name": "articleTitle",
-                            "left": 0,
-                            "top": 0,
-                            "width": 1920,
-                            "height": 180,
-                            "type": "StaticPath",
-                            "path": [
-                                ["M", 1920, 0],
-                                ["L", 0, 0],
-                                ["L", 0, 180],
-                                ["L", 1920, 180],
-                                ["L", 1920, 0],
-                                ["Z"]
-                            ],
-                            "fill": "#0B9281"
-                        },
-
-                        { ## 자막 텍스트 레이어
-                            "id": "StaticText_abstract",
-                            "name": "abstract",
-                            
-                            "stroke": None,
-                            "strokeWidth": 0,
-                            "left": 180,
-                            "top": 850,
-                            "width": 1560,
-                            "height": 88,
-                            "opacity": 1,
-                            
-                            "originY": "top",
-                            "scaleX": 1,
-                            "scaleY": 1,
+                        {   ## 자막 텍스트 레이어
                             "type": "StaticText",
+                            "name": "abstract",
+                            "id": "StaticText_abstract",
+                            "left": 85,
+                            "top": 850,
+                            "width": 1750,
 
-                            "visible": True,
-                            
-                            "charSpacing": 0,
                             "fill": "#000000",
-                            "fontFamily": "NotoSans-Medium",
+                            "fontFamily": "NotoSans-Regular",
                             "fontSize": 30,
-                            "lineHeight": 1.16,
                             "text": abs.replace("'", "’"),
                             "textAlign": "left",
                             "fontURL": "https://cdn.jsdelivr.net/npm/notosans@5.0.0/NotoSans-Regular.woff2"
                         },
-                    
                         { ## DOI 주소 레이어
-                            "id": "StaticText_doi",
+                            "type": "StaticText",
                             "name": "doi",
-                            
-                            "stroke": None,
-                            "strokeWidth": 0,
+                            "id": "StaticText_doi",
                             "left": 30,
                             "top": 1005,
                             "width": 800,
-                            "height": 25,
-                            "opacity": 1,
-                            
-                            "originY": "top",
-                            "scaleX": 1,
-                            "scaleY": 1,
-                            "type": "StaticText",
 
-                            "visible": True,
-                            
-                            "charSpacing": 0,
                             "fill": "#ffffff",
                             "fontFamily": "NotoSans-Regular",
                             "fontSize": 20,
-                            "lineHeight": 1.16,
                             "text": self.doi,
                             "textAlign": "left",
                             "fontURL": "https://cdn.jsdelivr.net/npm/notosans@5.0.0/NotoSans-Regular.woff2"
                         },
-                    
-                        { ## 저작권 텍스트 레이어
-                            "id": "StaticText_copyright",
+                        { ##저작권 정보 레이어
+                            "type": "StaticText",
                             "name": "copyright",
-                            
-                            "stroke": None,
-                            "strokeWidth": 0,
+                            "id": "StaticText_copyright",
                             "left": 30,
                             "top": 1030,
                             "width": 800,
-                            "height": 25,
-                            "opacity": 1,
-                            
-                            "originY": "top",
-                            "scaleX": 1,
-                            "scaleY": 1,
-                            "type": "StaticText",
 
-                            "visible": True,
-                            
-                            "charSpacing": 0,
                             "fill": "#ffffff",
                             "fontFamily": "NotoSans-Regular",
                             "fontSize": 20,
-                            "lineHeight": 1.16,
                             "text": self.copyright,
                             "textAlign": "left",
                             "fontURL": "https://cdn.jsdelivr.net/npm/notosans@5.0.0/NotoSans-Regular.woff2"
