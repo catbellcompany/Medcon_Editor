@@ -6,19 +6,23 @@ from typing import List
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from database.session import SessionLocal
-from database.schemas import Voice, user_Login, new_Project, Scene_Rscs, save_Info, save_Image, play_Dict,voice_Update, voice_Request, SnsType, UserRegister,Voice, UserDelete, UserUpdate
+from database.schemas import Voice,video_Create , user_Login, new_Project, Scene_Rscs, save_Info, save_Image, play_Dict,voice_Update, voice_Request, SnsType, UserRegister,Voice, UserDelete, UserUpdate
 from database.models import User, Project
 from fastapi import Depends, HTTPException, BackgroundTasks, Body, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from metadata.get_Metadata import get_Metadata_doi
 from sqlalchemy.orm import Session
 import urllib.request
+import numpy as np
+import re
+from io import BytesIO
+import base64
 import requests
 from PIL import Image
 from mutagen.mp3 import MP3
 import os
 import logging
-
+from metadata.crawler_Selector import Crawler_Medcon
 from gtts import gTTS
 from moviepy.editor import *
 import bcrypt
@@ -34,6 +38,7 @@ from scenes.Scene_Manager import scene_Creator
 import datetime
 import time
 import json
+from scenes.Video_Manager import video_Manager
 
 app = FastAPI(title="Medcon Editor", 
               description="논문 요약 및 프레젠테이션 생성 툴", 
@@ -74,9 +79,6 @@ description = """
     /user/register/{sns_type}
     
     Input
-    SnsType
-    {facebook: str = "facebook"
-    google: str = "google"}
     
     UserRegister
     user_id : str = None
@@ -93,38 +95,38 @@ description = """
     
 
 """
-@app.post("/user/register/{sns_type}", status_code=200, tags=["User"], description = description)
-async def register_user(sns_type : SnsType, reg_info: UserRegister, db : Session = Depends(get_db)):
-    if sns_type == SnsType.google or sns_type == SnsType.facebook:
-        user = db.query(User).filter(User.email == reg_info.user_id).first()
+@app.post("/user/register", status_code=200, tags=["User"], description = description)
+async def register_user(reg_info: UserRegister, db : Session = Depends(get_db)):
+    
+    user = db.query(User).filter(User.email == reg_info.user_id).first()
 
-        if not reg_info.user_id or not reg_info.user_pw:
-            raise HTTPException(status_code=400, detail={"success" : False, "code" : "000", "message" : "이메일과 비밀번호를 반드시 입력해 주시기 바랍니다."})
-        if user:
-            raise HTTPException(status_code=400, detail={"success" : False, "code" : "001", "message" : "이미 존재하는 이메일 주소"})
-        hash_pw = bcrypt.hashpw(reg_info.user_pw.encode("utf-8"), bcrypt.gensalt())
-        
+    if not reg_info.user_id or not reg_info.user_pw:
+        raise HTTPException(status_code=400, detail={"success" : False, "code" : "000", "message" : "이메일과 비밀번호를 반드시 입력해 주시기 바랍니다."})
+    if user:
+        raise HTTPException(status_code=400, detail={"success" : False, "code" : "001", "message" : "이미 존재하는 이메일 주소"})
+    
+    hash_pw = bcrypt.hashpw(reg_info.user_pw.encode("utf-8"), bcrypt.gensalt())
+    
+    key = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
+    user = db.query(User).filter(User.key == key).first()
+    
+    while user != None:
         key = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
         user = db.query(User).filter(User.key == key).first()
-        
-        while user != None:
-            key = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
-            user = db.query(User).filter(User.key == key).first()
-        
-        new_user = User(user_id = reg_info.user_id, user_pw = hash_pw, email = reg_info.user_id, key = key, locale = reg_info.locale, picture = reg_info.picture, create_dt = datetime.datetime.now(), last_mod_dt = datetime.datetime.now())
-        db.add(new_user)
-        db.commit()
-        
-        project_dir = os.getcwd().replace("\\", "/") + "/projects/" + key
-        
-        if not os.path.exists(project_dir):
-            os.mkdir(project_dir)
-        new_token = signJWT(reg_info.user_id)
-        token = new_token['access_token']
-        
-        return HTTPException(status_code = 200, detail={"success" : True, "message" : "회원가입 성공", "data" : token})
     
-    return HTTPException(status_code=400, detail={"success" : False, "code" : "002", "message" : "지원하지 않는 플랫폼"})
+    new_user = User(user_id = reg_info.user_id, user_pw = hash_pw, email = reg_info.user_id, key = key, locale = reg_info.locale, picture = reg_info.picture, create_dt = datetime.datetime.now(), last_mod_dt = datetime.datetime.now())
+    db.add(new_user)
+    db.commit()
+    
+    project_dir = os.getcwd().replace("\\", "/") + "/projects/" + key
+    
+    if not os.path.exists(project_dir):
+        os.mkdir(project_dir)
+    new_token = signJWT(reg_info.user_id)
+    token = new_token['access_token']
+    
+    return HTTPException(status_code = 200, detail={"success" : True, "message" : "회원가입 성공", "data" : token})
+
 
 description = """
     /user/delete
@@ -148,6 +150,7 @@ async def delete_user(bearer: JWTBearer = Depends(JWTBearer()), db:Session = Dep
         project_dir = project_dir_origin + "/" + project
         img_dir = project_dir + "/sources/images"
         voice_dir = project_dir + "/voices"
+        
         if os.path.exists(img_dir):
             imgs = os.listdir(img_dir)
             for img in imgs:
@@ -155,12 +158,14 @@ async def delete_user(bearer: JWTBearer = Depends(JWTBearer()), db:Session = Dep
                 os.remove(img_dir + "/" + img)
             os.rmdir(img_dir)    
             os.rmdir(project_dir + "/sources") 
+            
         if os.path.exists(voice_dir):
             voices = os.listdir(voice_dir)
             for voice in voices:
                 os.remove(voice_dir + "/" + voice)
             os.rmdir(voice_dir)
         os.rmdir(project_dir)
+    
     os.rmdir(project_dir_origin)
     
 
@@ -179,6 +184,7 @@ async def delete_user(bearer: JWTBearer = Depends(JWTBearer()), db:Session = Dep
     
     db.commit()
     raise HTTPException(status_code = 200, detail={"success" : True, "message" : "계정삭제 완료"})
+
 description ="""
     /user/update
     
@@ -242,6 +248,7 @@ async def user_login(user: user_Login, db : Session = Depends(get_db)):
         new_token = signJWT(user_log['user_id'])
         token = new_token['access_token']
         raise HTTPException(status_code= 200, detail = {"success" : True, "message" : "로그인 되었습니다.", "token" : token, "user_key" : user_log['key']})
+
 description = """
     /user/get
 
@@ -560,29 +567,36 @@ def project_get(project_key : str, bearer : JWTBearer = Depends(JWTBearer()), db
         raise HTTPException(status_code = 200, detail={"success" : False, "message" : "해당 프로젝트가 존재하지 않습니다."})
     else:
         project_dict = project.__dict__
-        
-        if project_dict['voices'] == None or project_dict['voices'] == "":
+        print(project_dict['voices'])
+        if project.voices == None:
             voices = []
         else:
             voices = project.voices.split("|")
-            if voices == [] or voices[0] == '':
-                voices = []
-            else:
-                tmp = []
+        
+        if voices == [] or voices[0] == '':
+            voices = []
+        else:
+            tmp = []
+            try:
+                print(len(voices))
                 for voice in voices:
+                    
                     voice_dict = json.loads(voice)
-                    if voice_dict['url'] and voice_dict['duration']:
-                        if voice_dict['id'] > 9:
-                            filename = project_key + "_voice_"+  str(voice_dict['id'])+".mp3"
-                        else:
-                            filename = project_key + "_voice_0"+  str(voice_dict['id'])+".mp3"
-                        audio = MP3(os.getcwd().replace("\\", "/") +"/projects/" + user.key + "/" + project_key +"/sources/voices/" + filename)
-                        url= "/voice/{}/{}".format(project_key, filename)
-                        voice_dict['url'] = url
-                        voice_dict['duration'] = audio.info.length
-
-                    tmp.append(json.dumps(dict(voice_dict)))
-                voices = tmp
+                    
+                    if voice_dict['id'] > 9:
+                        filename = project_key + "_voice_"+  str(voice_dict['id'])+".mp3"
+                    else:
+                        filename = project_key + "_voice_0"+  str(voice_dict['id'])+".mp3"
+                    audio = MP3(os.getcwd().replace("\\", "/") +"/projects/" + user.key + "/" + project_key +"/sources/voices/" + filename)
+                    url= "/voice/{}/{}".format(project_key, filename)
+                    voice_dict['url'] = url
+                    voice_dict['duration'] = audio.info.length * 1000
+                    
+                    tmp.append(dict(voice_dict))
+            except:
+                pass
+            print(tmp)
+            voices = tmp
 
         result = {"project_key" : project_dict["project_key"], "project_name" : project_dict["project_name"], "user_key" : project_dict["user_key"], "json_txt" : json.loads(project_dict["json"].replace('{"id": "Image_centerImg", "name": "StaticImage", "stroke": null, "strokeWidth": 0, "left": 510.0, "top": 210, "width": 900, "height": 620, "opacity": 1, "originY": "top", "scaleX": 1, "scaleY": 1, "type": "StaticImage", "visible": true, "src": "", "cropX": 0, "cropY": 0, "metadata": {}},', '')), "doi" : project_dict["doi"], "author_image": project_dict['author_img'],"thumbnail" : project.thumbnail, "voices" : voices, "create_dt" : str(project_dict['create_dt']), "last_mod_dt" : str(project_dict['last_mod_dt'])}
         raise HTTPException(status_code = 200, detail={"success" : True, "message" : "프로젝트 불러오기 성공", "data" : result})
@@ -668,7 +682,41 @@ def delete_project( project_key : str, bearer : JWTBearer = Depends(JWTBearer())
             for file in files:
                 os.remove(path + "\\" + file) 
             os.rmdir(path=path)
+        base_dir = os.getcwd().replace('\\', '/') + "/" + "projects/" + user.key + "/" + project_key + "/sources"
+    
+        gif_dir = base_dir + "/GIF"
         
+        if os.path.exists(gif_dir):
+            filelist = os.listdir(gif_dir)
+            for file in filelist:
+                filepath = gif_dir +"/" + file
+                os.remove(filepath)
+            os.rmdir(gif_dir)
+        page_dir = base_dir + "/pages"
+        
+        if os.path.exists(page_dir):
+            filelist = os.listdir(page_dir)
+            for file in filelist:
+                filepath = page_dir +"/" + file
+                os.remove(filepath)
+            os.rmdir(page_dir)
+        final_frame = base_dir + "/{}_final_frame.mp4".format(project_key)
+        final_video = base_dir + "/{}_final_video.mp4".format(project_key)
+        final_voice = base_dir + "/{}_final_voice.mp3".format(project_key)
+        
+        if os.path.exists(final_frame):
+            os.remove(final_frame)
+        
+        if os.path.exists(final_video):
+            os.remove(final_video)
+            
+        if os.path.exists(final_voice):
+            os.remove(final_voice)
+        
+        path = os.getcwd().replace('\\', '/') + "/" + "projects/" + user.key + "/" + project_key + "/logger.txt"
+        if os.path.exists(path):
+            os.remove(path)
+    
         path = os.getcwd().replace("\\","/") + "/projects/" + user.key + "/" + project_key + "/sources/" + "images"
         if os.path.exists(path=path):
             files = os.listdir(path=path)
@@ -701,7 +749,6 @@ description = """
         
         True
         {"success" : True, "message" : "플레이 정보 저장 성공"}
-
 """
 @app.post("/project/play/update", tags=["Project"], description=description)
 def post_project_Play(play_info : play_Dict, bearer : JWTBearer = Depends(JWTBearer()), db : Session = Depends(get_db)):
@@ -712,18 +759,35 @@ def post_project_Play(play_info : play_Dict, bearer : JWTBearer = Depends(JWTBea
     else:
         pass
     tmp = []
-    for play_json in play_info.project_play:
-        tmp.append(json.dumps(dict(play_json)))
     
+    page_dir = 'D:/Medon_Editor/projects/{}/{}/sources/pages'.format(user.key, play_info.project_key)
+    if not os.path.exists(page_dir):
+        os.mkdir(page_dir)
+    i = 0
+    for play_json in play_info.project_play:
+        if i < 10:
+            filename = page_dir + "/page_img0{}.png".format(str(i))
+        else:
+            filename = page_dir + "/page_img{}.png".format(str(i))
+        
+        data = base64.b64decode(play_json.preview.replace('data:image/png;base64,',''))
+        imgFile = open(filename, 'wb')
+        imgFile.write(data)
+        imgFile.close()
+        
+        tmp.append(json.dumps(dict(play_json)))
+        i += 1
+        
     project.play = "|".join(tmp) 
     project.frame = json.dumps(dict(play_info.project_frame))
     
-    db.commit()
+    db.commit()    
     project = db.query(Project).filter(Project.project_key == play_info.project_key).first()
     plays = project.play.split("|")
     tmp = []
     for p in plays:
         tmp.append(json.loads(p))
+        
 
     raise HTTPException(status_code=200, detail={"success" : True, "message" : "플레이 정보 저장 성공", "data" : {"play" : tmp, "project_frame" : dict(play_info.project_frame)}})
 
@@ -841,11 +905,10 @@ def get_metadata_pdf(pdf : UploadFile):
     
     raise HTTPException(status_code = 200, detail={"success" : True, "message" : "데이터 불러오기 성공", "data" : result})
 
-
-
-def mk_voices(dir : str, project_id : str, texts : List[Voice]):
+def mk_voices(dir : str, project_id : str, texts : List[Voice], tld : str):
     for text in texts:
-        tts = gTTS(text = text.text, lang="en")
+        txt = re.sub(r'\([^)]*\)', '', text.text)
+        tts = gTTS(text = txt, lang="en", tld = tld)
         if text.id < 10:
             filename = dir + "/" + project_id + "_voice_0" + str(text.id) + ".mp3"
         else:
@@ -907,7 +970,7 @@ def create_voices(voice_req : voice_Request, background_task : BackgroundTasks, 
     seq_f.write(str(len(voice_req.text_list)))
     seq_f.close()
 
-    background_task.add_task(mk_voices, voices_dir, voice_req.project_key, voice_req.text_list)
+    background_task.add_task(mk_voices, voices_dir, voice_req.project_key, voice_req.text_list, voice_req.tld)
     
 description = """
     [get]
@@ -985,7 +1048,6 @@ description = """
     이미지 URL LIST
     http://218.52.115.188:7000/TempImage/default_tmp.png
 """
-
 @app.get("/TempImage/{filename}", tags=["Image"], description=description)
 def get_Template_Image(filename :  str):
     filepath = os.getcwd().replace("\\", "/") + "/sources/images/background/" + filename
@@ -1017,7 +1079,6 @@ description = """
     http://218.52.115.188:7000/LogoImage/SCIE.png/
     http://218.52.115.188:7000/LogoImage/Scopus.png/
 """
-
 @app.get("/LogoImage/{filename}", tags=["Image"], description=description)
 def get_Logo_Image(filename : str):
     
@@ -1079,3 +1140,188 @@ def get_source_img_list(project_key : str, bearer : JWTBearer = Depends(JWTBeare
         tmp.append("http://218.52.115.188:7000" + "/source/image/" + project_key + "/" + img)
         
     raise HTTPException(status_code=200, detail={"success" : True, "message" : "이미지 리스트 불러오기 성공" , "data" : tmp})
+
+description = """
+    /video/create
+    비디오 생성 
+    
+    생성 조건 -> 
+    1번 음성이 먼저 생성 되어야 함. -> 영상에 쓰일 음성이 생성됨
+    2번 프로젝트가 최소 1회 저장되어야 함. -> 페이지가 이미지로 저장됨
+
+    
+    Error Code
+    "code" : "00", "message" : "해당 프로젝트가 존재하지 않습니다."
+    "code" : "10", "message" : "음성이 제작되지 않았습니다."
+    "code" : "11", "message" : "프로젝트 저장 필요"
+    "code" : "12", "message" : "페이지 합성 오류"
+    "code" : "13", "message" : "GIF 합성 오류"
+    "code" : "14", "message" : "음성 합성 오류"
+    "code" : "15", "message" : "최종영상 합성 오류"
+    
+
+    
+    
+"""
+@app.post("/video/create" , tags = ['Video'], description = description)
+def create_video(background_task : BackgroundTasks, video_input : video_Create, bearer : JWTBearer = Depends(JWTBearer()), db : Session = Depends(get_db)):
+    user = db.query(User).filter(User.user_id == decodeJWT(bearer)['user_id']).first()
+    project = db.query(Project).filter(Project.project_key == video_input.project_key).first()
+    
+    if project == None:
+        raise HTTPException(status_code=200, detail={"success" : False, "code" : "00", "message" : "해당 프로젝트가 존재하지 않습니다."})
+    else:
+        pass
+
+    project_dir = os.getcwd().replace("\\", "/") + "/projects/" + user.key + "/" + video_input.project_key + "/sources"
+    voice_dir = project_dir + "/voices"
+    page_dir = project_dir + "/pages"
+    
+    if not os.path.exists(voice_dir):
+        raise HTTPException(status_code=200, detail={"success" : False, "code" : "10", "message" : "음성이 제작되지 않았습니다."})
+    
+    if not os.path.exists(page_dir):
+        raise HTTPException(status_code=200, detail={"success" : False, "code" : "11", "message" : "프로젝트 저장 필요"})
+    
+    manager = video_Manager(user_key = user.key, project_key = video_input.project_key, background = video_input.intro)
+    
+    
+    try:
+        background_task.add_task(manager.convert_pages)
+    except:
+        raise HTTPException(status_code = 200, detail={"success" : False, "code" : "12", "message" : "페이지 합성 오류"})
+    
+    try:
+        background_task.add_task(manager.synthesis_GIF)
+    except:
+        raise HTTPException(status_code = 200, detail={"success" : False, "code" : "13", "message" : "GIF 합성 오류"})
+
+    try:
+        background_task.add_task(manager.synthesis_voices)
+    except:
+        raise HTTPException(status_code = 200, detail={"success" : False, "code" : "14", "message" : "음성 합성 오류"})
+    
+    try:
+        background_task.add_task(manager.synthesis_final)
+    except:
+        raise HTTPException(status_code = 200, detail={"success" : False, "code" : "15", "message" : "최종영상 합성 오류"})
+
+description = """
+    /video/get/{project_key}
+    비디오 생성시 진행률을 불러옴.
+    파일이 완성되면 파일과 이름을 호출
+    해당 API는 /video/create 실행 후 초당 1회 실행
+    
+    파일 생성시 : "success" : False, "message" : "현재 프로세스", "data" : {"progress" : 0, "step" : "준비 중", "task":"0/0"
+    
+    파일 완성시 파일 리턴 : {"success" : True, "message" : "다운로드", "data" : {"path" : "/video/download/{project_key}/{filename}"}
+"""
+@app.get("/video/get/{project_key}", tags = ['Video'], description = description)
+def get_video(project_key : str, bearer : JWTBearer = Depends(JWTBearer()), db : Session = Depends(get_db) ):
+    user = db.query(User).filter(User.user_id == decodeJWT(bearer)['user_id']).first()
+    if user == None:
+        raise HTTPException(status_code = 200, detail={"success" : False, "code" : "00", "message" : "해당 계정이 존재하지 않습니다."})
+    project = db.query(Project).filter(Project.project_key == project_key).first()
+    
+    filepath = os.getcwd().replace('\\', '/') +"/projects/" +user.key + "/" + project_key + "/logger.txt"
+    
+    if os.path.exists(filepath):
+        f = open(filepath, 'r', encoding="utf-8")
+        line = f.read()
+        inside = line.split("|")
+
+        if inside[0] == '':
+            f.close()
+
+            raise HTTPException(status_code = 200, detail={"success" : False,  "message" : "현재 프로세스", "data" : {"progress" : 0, "step" : "준비 중", "task":"0/0"}})
+
+        else:  
+            f.close()   
+            
+            if float(inside[0]) == 100.0 and inside[2] == "5/5":
+                filename = "{}_final_video.mp4".format(project_key)
+                raise HTTPException(status_code = 200, detail={"success" : True, "message" : "다운로드", "data" : {"path" : "/video/download/{}/{}".format(project_key, filename)}})
+                
+            
+            raise HTTPException(status_code = 200, detail={"success" : False, "message" : "현재 프로세스", "data" : {"progress" : float(inside[0]), "step" : inside[1], "task" : inside[2]}})
+    else:
+        
+        raise HTTPException(status_code = 200, detail={"success" : False, "message" : "현재 프로세스", "data" : {"progress" : 0, "step" : "준비 중", "task":"0/0"}})
+
+description = """
+    /video/delete/{project_key}
+    비디오 삭제
+    
+    비디오를 생성하는데 사용된 모든 파일들 삭제
+    
+    False
+    "code" : "00", "message" : "해당 계정이 존재하지 않습니다."
+    "code" : "20", "message" : "영상 파일 삭제 실패"
+    
+    True
+    "success" : True, "message" : "영상 파일 삭제 완료"
+    
+"""
+@app.delete("/video/delete/{project_key}", tags = ['Video'], description = description)
+def delete_video(project_key : str, bearer : JWTBearer = Depends(JWTBearer()), db : Session = Depends(get_db)):
+    user = db.query(User).filter(User.user_id == decodeJWT(bearer)['user_id']).first()
+    if user == None:
+        raise HTTPException(status_code = 200, detail={"success" : False, "code" : "00", "message" : "해당 계정이 존재하지 않습니다."})
+    try:
+        base_dir = os.getcwd().replace('\\', '/') + "/" + "projects/" + user.key + "/" + project_key + "/sources"
+        
+        gif_dir = base_dir + "/GIF"
+        
+        if os.path.exists(gif_dir):
+            filelist = os.listdir(gif_dir)
+            for file in filelist:
+                filepath = gif_dir +"/" + file
+                os.remove(filepath)
+            os.rmdir(gif_dir)
+        page_dir = base_dir + "/pages"
+        
+        if os.path.exists(page_dir):
+            filelist = os.listdir(page_dir)
+            for file in filelist:
+                filepath = page_dir +"/" + file
+                os.remove(filepath)
+            os.rmdir(page_dir)
+        
+        final_frame = base_dir + "/{}_final_frame.mp4".format(project_key)
+        final_video = base_dir + "/{}_final_video.mp4".format(project_key)
+        final_voice = base_dir + "/{}_final_voice.mp3".format(project_key)
+        
+        if os.path.exists(final_frame):
+            os.remove(final_frame)
+        
+        if os.path.exists(final_video):
+            os.remove(final_video)
+            
+        if os.path.exists(final_voice):
+            os.remove(final_voice)
+        
+        path = os.getcwd().replace('\\', '/') + "/" + "projects/" + user.key + "/" + project_key + "/logger.txt"
+        if os.path.exists(path):
+            os.remove(path)
+        
+        raise HTTPException(status_code = 200, detail={"success" : True, "message" : "영상 파일 삭제 완료"})
+    except:
+        raise HTTPException(status_code = 200, detail={"success" : False, "code" : "20", "message" : "영상 파일 삭제 실패"})
+
+@app.get("/video/download/{project_key}/{filename}", tags = ['Video'])
+async def video_download(project_key : str, filename : str, bearer : JWTBearer = Depends(JWTBearer()), db : Session = Depends(get_db)):
+    user = db.query(User).filter(User.user_id == decodeJWT(bearer)['user_id']).first()
+    if user == None:
+        raise HTTPException(status_code = 200, detail={"success" : False, "code" : "00", "message" : "해당 계정이 존재하지 않습니다."})
+    path = os.getcwd().replace("\\",'/') + "/projects/" + user.key + "/" +project_key +"/sources/" + filename
+    project = db.query(Project).filter(Project.project_key == project_key).first()
+    
+    
+    if not os.path.exists(path):    
+        raise HTTPException(status_code = 200, detail = {"success" : False, "Code" : "01", "message" : "파일 제작 중"})
+    else:
+        try:
+            return FileResponse(path, filename = project.project_name + ".mp4")
+        except:
+            raise HTTPException(status_code = 200, detail = {"success" : False, "Code" : "01", "message" : "파일 제작 중"})
+
