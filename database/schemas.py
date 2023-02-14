@@ -210,7 +210,9 @@ class Voice(BaseModel):
     
 class voice_Request(BaseModel):
     project_key : str
+    tld : str = Query(default="us", title="억양")
     text_list : List[Voice]
+    
     
 class voice_Update(BaseModel):
     id : int
@@ -244,3 +246,7 @@ class save_Info(BaseModel):
     thumbnail : str
     json_input : dict
     voices : List[voice_Update]
+
+class video_Create(BaseModel):
+    project_key : str
+    intro : int
