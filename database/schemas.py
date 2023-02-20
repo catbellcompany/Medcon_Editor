@@ -184,8 +184,8 @@ class play_Page(BaseModel):
     id : str
     duration : int = Query(default = None, title = "Audio", description= "Duration 정보")
     preview : str
-    url : str
-    text: str
+    url : str = Query(default = None, title = "url", description= "url 정보")
+    text: str = Query(default = None, title = "text", description= "text 정보")
     
     class Config:
         schema_extra = {
