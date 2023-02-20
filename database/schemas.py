@@ -184,7 +184,8 @@ class play_Page(BaseModel):
     id : str
     duration : int = Query(default = None, title = "Audio", description= "Duration 정보")
     preview : str
-    audio : str = Query(default = None, title = "Audio", description= "오디오 정보")
+    url : str
+    text: str
     
     class Config:
         schema_extra = {
@@ -192,7 +193,8 @@ class play_Page(BaseModel):
                 "id" : "", 
                 "duration" : 0,
                 "preview" : "",
-                "audio" : ""
+                "url" : "",
+                "text" : ""
             }    
         } 
 class project_Frame(BaseModel):
