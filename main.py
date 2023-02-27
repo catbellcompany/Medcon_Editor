@@ -853,6 +853,7 @@ description = """
     ERROR CODE : 
         {"success" : False, "code" : "01", "message" : "주소가 잘못 됬거나 적용되지 않은 DOI 입니다."}
         {"success" : False, "code" : "02", "message" : "데이터를 불러올 수 없습니다."}
+        {"success" : False, "code" : "03", "message" : "URL을 확인해주시기 바랍니다."}
     SUCCESS:
         {"success" : True, "message" : "데이터 불러오기 성공", "data" : result}
 
@@ -860,10 +861,11 @@ description = """
 @app.get("/metadata/doi", tags=["Metadata"], description=description)
 def get_metadata_doi(doi : str):
     try:
-        metadata = get_Metadata_doi(doi)
+        crawler = Crawler_Medcon(doi)
+        metadata = crawler.get_Metadata()
     except:
-        raise HTTPException(status_code = 200, detail={"success" : False, "code" : "01", "message" : "주소가 잘못 됬거나 적용되지 않은 DOI 입니다."})
-    
+        raise HTTPException(status_code = 200, detail={"success" : False, "code" : "03", "message" : "URL을 확인해주시기 바랍니다."})
+        
     try:
         result = {"journal_title" : metadata["journal_title"], "article_title" : metadata["article_title"], "keywords" : metadata["keywords"].replace("\xa0", " ").replace('\\', ""), "correspondence" : metadata["correspondence"], "copyright" : metadata["copyright"], "doi" : metadata["doi"], "authors" :  ";".join(metadata["authors"]), "abstract" : metadata["abstract"],  "images" : metadata["images"], "published" : metadata["published"]}
     except:
